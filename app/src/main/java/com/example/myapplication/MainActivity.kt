@@ -17,13 +17,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -50,14 +48,17 @@ class MainActivity : ComponentActivity() {
 fun MyApp() {
     val navController = rememberNavController()
 
+    val gameViewModel: GameViewModel = viewModel()
+
+
     NavHost(navController = navController, startDestination = "players") {
         composable("players") {
-            PlayerScreen(onNext = {
+            PlayerScreen(gameViewModel, onNext = {
                 navController.navigate("games")
             })
         }
         composable("games") {
-            GameScreen(onNext = {
+            GameScreen(gameViewModel, onNext = {
                 navController.navigate("results")
             })
         }
@@ -70,9 +71,8 @@ fun MyApp() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PlayerScreen(onNext: () -> Unit) {
-    // State to hold the list of player names
-    val players = remember { mutableStateListOf("", "", "", "") }
+fun PlayerScreen(viewModel: GameViewModel ,onNext: () -> Unit) {
+    val players = viewModel.players
 
     Scaffold(
         topBar = {
@@ -84,16 +84,17 @@ fun PlayerScreen(onNext: () -> Unit) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.Center
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 60.dp),
+                verticalArrangement = Arrangement.Top
             ) {
-                // Text field to enter player names
 
                 players.forEachIndexed { index, player ->
                     TextField(
                         value = player,
                         onValueChange = { players[index] = it },
-                        label = { Text("Enter player ${index + 1}") }
+                        label = { Text("Enter player ${index + 1}") },
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
 
@@ -107,8 +108,10 @@ fun PlayerScreen(onNext: () -> Unit) {
                         .fillMaxWidth()
                         .padding(vertical = 16.dp)
                 ) {
-                    Text(if (players.size < 7) "Add Player"
-                    else "Max 7 players is here")
+                    Text(
+                        if (players.size < 7) "Add Player"
+                        else "Max 7 players is here"
+                    )
                 }
 
                 // Button to go to the next screen
@@ -129,8 +132,8 @@ fun PlayerScreen(onNext: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GameScreen(onNext: () -> Unit) {
-    // TODO: Implement game screen
+fun GameScreen(gameViewModel: GameViewModel, onNext: () -> Unit) {
+    val players = gameViewModel.players
     Scaffold(
         topBar = {
             TopAppBar(
@@ -138,13 +141,15 @@ fun GameScreen(onNext: () -> Unit) {
             )
         },
         content = { padding ->
-            TextField( //TODO
-                value = "playerName",
+            TextField(
+                //TODO
+                value = players.joinToString(),
                 onValueChange = { },
                 label = { Text("Player Name") },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 16.dp)
+                    .padding(top = 60.dp),
             )
         },
         bottomBar = {
@@ -180,4 +185,8 @@ fun ResultsScreen() {
             )
         }
     )
+}
+
+class GameViewModel : ViewModel() {
+    val players = mutableStateListOf<String>("1", "2", "3", "4")
 }
