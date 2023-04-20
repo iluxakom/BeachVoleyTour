@@ -72,7 +72,7 @@ fun MyApp() {
 @Composable
 fun PlayerScreen(onNext: () -> Unit) {
     // State to hold the list of player names
-    val players = remember { mutableStateListOf<String>() }
+    val players = remember { mutableStateListOf("", "", "", "") }
 
     Scaffold(
         topBar = {
@@ -88,30 +88,27 @@ fun PlayerScreen(onNext: () -> Unit) {
                 verticalArrangement = Arrangement.Center
             ) {
                 // Text field to enter player names
-                var playerName by remember { mutableStateOf("") }
-                TextField(
-                    value = playerName,
-                    onValueChange = { playerName = it },
-                    label = { Text("Player Name") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 16.dp)
-                )
+
+                players.forEachIndexed { index, player ->
+                    TextField(
+                        value = player,
+                        onValueChange = { players[index] = it },
+                        label = { Text("Enter player ${index + 1}") }
+                    )
+                }
 
                 // Button to add the player name to the list
                 Button(
                     onClick = {
-                        // Add the player name to the list of players
-                        players.add(playerName)
-                        // Clear the text field
-                        playerName = ""
+                        players.add("")
                     },
-                    enabled = playerName.isNotBlank(),
+                    enabled = players.size < 7,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 16.dp)
                 ) {
-                    Text("Add Player")
+                    Text(if (players.size < 7) "Add Player"
+                    else "Max 7 players is here")
                 }
 
                 // Button to go to the next screen
