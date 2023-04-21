@@ -21,7 +21,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
@@ -155,8 +154,6 @@ fun GameScreen(gameViewModel: GameViewModel, onNext: () -> Unit) {
                     verticalArrangement = Arrangement.Top
                 ) {
                     gameResults.forEachIndexed { index, result ->
-                        val team1Score = remember { mutableStateOf(result.team1Score) }
-                        val team2Score = remember { mutableStateOf(result.team2Score) }
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth(),
@@ -169,14 +166,11 @@ fun GameScreen(gameViewModel: GameViewModel, onNext: () -> Unit) {
                                 text = "${index + 1}.",
                             )
                             TextField(
-                                value = team1Score.value.run { this?.toString() ?: "" },
+                                value = result.team1Score.run { this?.toString() ?: "" },
                                 onValueChange = {
                                     val newValue = it.toIntOrNull() ?: 0
-                                    team1Score.value = newValue
-                                    gameViewModel.setTeam1GameResult(
-                                        index,
-                                        newValue
-                                    )
+                                    val anotherTeamRes = gameResults[index].team2Score
+                                    setGameResult(index, GameResult(newValue, anotherTeamRes))
                                 },
                                 label = { Text(text = "${players[team1Players.first]}/${players[team1Players.second]}") },
 
@@ -190,17 +184,15 @@ fun GameScreen(gameViewModel: GameViewModel, onNext: () -> Unit) {
                                 text = "vs",
                             )
                             TextField(
-                                value = team2Score.value.run { this?.toString() ?: "" },
+                                value = result.team2Score.run { this?.toString() ?: "" },
                                 onValueChange = {
                                     val newValue = it.toIntOrNull() ?: 0
-                                    team2Score.value = newValue
-                                    gameViewModel.setTeam2GameResult(
-                                        index,
-                                        newValue
-                                    )
+                                    val anotherTeamRes = gameResults[index].team1Score
+                                    setGameResult( index, GameResult(anotherTeamRes, newValue))
                                 },
                                 label = { Text(text = "${players[team2Players.first]}/${players[team2Players.second]}") },
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier
+                                    .weight(1f),
                                 keyboardOptions = KeyboardOptions.Default.copy(
                                     keyboardType = KeyboardType.Number
                                 )
@@ -282,11 +274,11 @@ class GameViewModel : ViewModel() {
         Pair(0, 3) to Pair(2, 4),
         Pair(0, 4) to Pair(1, 4),
     )
-    val gameResults = mutableListOf(
+    val gameResults = mutableStateListOf(
         GameResult(null, null),
         GameResult(null, null),
         GameResult(null, null),
-        GameResult(null, null),
+        GameResult(null, null)
     )
 
     val isTourFinished = mutableStateOf(false)
@@ -295,13 +287,8 @@ class GameViewModel : ViewModel() {
         isTourFinished.value = gameResults.all { it.team1Score != null && it.team2Score != null }
     }
 
-    fun setTeam1GameResult(gameIndex: Int, score: Int) {
-        gameResults[gameIndex].team1Score = score
-        observeGameResults()
-    }
-
-    fun setTeam2GameResult(gameIndex: Int, score: Int) {
-        gameResults[gameIndex].team2Score = score
+    fun setGameResult(gameIndex: Int, result: GameResult) {
+        gameResults[gameIndex] = result
         observeGameResults()
     }
 
