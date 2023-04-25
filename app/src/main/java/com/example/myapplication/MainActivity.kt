@@ -26,7 +26,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -64,20 +63,26 @@ fun MyApp() {
     val navController = rememberNavController()
 
     val gameViewModel: GameViewModel = viewModel()
-    val tournament = remember { mutableStateOf<Tournament?>(null) }
 
-    val schema = LocalContext.current.assets.open("tournament.schemes.json").readBytes().decodeToString()
+
+    val schema =
+        LocalContext.current.assets.open("tournament.schemes.json").readBytes().decodeToString()
 
     NavHost(navController = navController, startDestination = "players") {
         composable("players") {
             PlayerScreen(gameViewModel, onNext = {
-                val tour = Tournament(gameViewModel.players, schema)
-                tournament.value = tour
-                tour.getGames().forEach {
-                    gameViewModel.gameTeams.add(
-                        (it.first.player1 to it.first.player2) to (it.second.player1 to it.second.player2)
-                    )
-                    gameViewModel.gameResults.add(GameResult(null, null))
+                val tour =
+                    gameViewModel.tournament.value ?: Tournament(gameViewModel.players, schema)
+                gameViewModel.tournament.value = tour
+                if (tour.getGames().size != gameViewModel.gameResults.size) {
+                    gameViewModel.gameResults.removeAll { true }
+                    gameViewModel.gameTeams.removeAll { true }
+                    tour.getGames().forEach {
+                        gameViewModel.gameTeams.add(
+                            (it.first.player1 to it.first.player2) to (it.second.player1 to it.second.player2)
+                        )
+                        gameViewModel.gameResults.add(GameResult(null, null))
+                    }
                 }
                 navController.navigate("games")
             })
@@ -85,7 +90,7 @@ fun MyApp() {
         composable("games") {
             GameScreen(gameViewModel, onNext = {
                 gameViewModel.gameResults.forEachIndexed { index, gameResult ->
-                    tournament.value?.setGameResult(
+                    gameViewModel.tournament.value?.setGameResult(
                         index + 1,
                         gameResult.team1Score!!,
                         gameResult.team2Score!!
@@ -95,7 +100,9 @@ fun MyApp() {
             })
         }
         composable("results") {
-            ResultsScreen(tournament.value?.getResults() ?: error("no tournament data"))
+            ResultsScreen(
+                gameViewModel.tournament.value?.getResults() ?: error("no tournament data")
+            )
         }
     }
 }
@@ -105,7 +112,6 @@ fun MyApp() {
 @Composable
 fun PlayerScreen(viewModel: GameViewModel, onNext: () -> Unit) {
     val players = viewModel.players
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -130,7 +136,6 @@ fun PlayerScreen(viewModel: GameViewModel, onNext: () -> Unit) {
                     )
                 }
 
-                // Button to add the player name to the list
                 Button(
                     onClick = {
                         players.add("")
@@ -146,7 +151,6 @@ fun PlayerScreen(viewModel: GameViewModel, onNext: () -> Unit) {
                     )
                 }
 
-                // Button to go to the next screen
                 Button(
                     onClick = onNext,
                     enabled = players.size in 4..7,
@@ -181,7 +185,7 @@ fun GameScreen(gameViewModel: GameViewModel, onNext: () -> Unit) {
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(horizontal = 16.dp)
-                            .padding(top = 60.dp, bottom = 100.dp),
+                            .padding(top = 60.dp, bottom = 60.dp),
                         verticalArrangement = Arrangement.Top
                     ) {
                         itemsIndexed(gameResults) { index, result ->
@@ -193,42 +197,49 @@ fun GameScreen(gameViewModel: GameViewModel, onNext: () -> Unit) {
                             ) {
                                 val team1Players = gameTeams[index].first
                                 val team2Players = gameTeams[index].second
-                                Text(
-                                    text = "${index + 1}.",
-                                )
-                                TextField(
-                                    value = result.team1Score.run { this?.toString() ?: "" },
-                                    onValueChange = {
-                                        val newValue = it.toIntOrNull() ?: 0
-                                        val anotherTeamRes = gameResults[index].team2Score
-                                        setGameResult(index, GameResult(newValue, anotherTeamRes))
-                                    },
-                                    label = { Text(text = "${players[team1Players.first - 1]}/${players[team1Players.second - 1]}") },
-
-                                    modifier = Modifier
-                                        .weight(1f),
-                                    keyboardOptions = KeyboardOptions.Default.copy(
-                                        keyboardType = KeyboardType.Number
+                                Box(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "${index + 1}.",
                                     )
-                                )
+                                }
+                                Box(modifier = Modifier.weight(4f)) {
+                                    TextField(
+                                        value = result.team1Score.run { this?.toString() ?: "" },
+                                        onValueChange = {
+                                            val newValue = it.toIntOrNull() ?: 0
+                                            val anotherTeamRes = gameResults[index].team2Score
+                                            setGameResult(
+                                                index,
+                                                GameResult(newValue, anotherTeamRes)
+                                            )
+                                        },
+                                        label = { Text(text = "${players[team1Players.first - 1]}/${players[team1Players.second - 1]}") },
+                                        keyboardOptions = KeyboardOptions.Default.copy(
+                                            keyboardType = KeyboardType.Number
+                                        ),
+                                        modifier = Modifier.align(Alignment.CenterEnd)
+                                    )
+                                }
                                 Text(
                                     text = "vs",
                                 )
-                                TextField(
-                                    value = result.team2Score.run { this?.toString() ?: "" },
-                                    onValueChange = {
-                                        val newValue = it.toIntOrNull() ?: 0
-                                        val anotherTeamRes = gameResults[index].team1Score
-                                        setGameResult(index, GameResult(anotherTeamRes, newValue))
-                                    },
-                                    label = { Text(text = "${players[team2Players.first - 1]}/${players[team2Players.second - 1]}") },
-                                    modifier = Modifier
-                                        .weight(1f),
-                                    keyboardOptions = KeyboardOptions.Default.copy(
-                                        keyboardType = KeyboardType.Number
+                                Box(modifier = Modifier.weight(4f)) {
+                                    TextField(
+                                        value = result.team2Score.run { this?.toString() ?: "" },
+                                        onValueChange = {
+                                            val newValue = it.toIntOrNull() ?: 0
+                                            val anotherTeamRes = gameResults[index].team1Score
+                                            setGameResult(
+                                                index,
+                                                GameResult(anotherTeamRes, newValue)
+                                            )
+                                        },
+                                        label = { Text(text = "${players[team2Players.first - 1]}/${players[team2Players.second - 1]}") },
+                                        keyboardOptions = KeyboardOptions.Default.copy(
+                                            keyboardType = KeyboardType.Number
+                                        )
                                     )
-                                )
-
+                                }
                             }
                         }
                     }
@@ -239,7 +250,7 @@ fun GameScreen(gameViewModel: GameViewModel, onNext: () -> Unit) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                if (!gameViewModel.isTourFinished.value) Text(text = "Set down all the games to go to results")
+
                 Button(
                     onClick = {
                         gameViewModel.printGameResults()
@@ -248,7 +259,7 @@ fun GameScreen(gameViewModel: GameViewModel, onNext: () -> Unit) {
                     enabled = gameViewModel.isTourFinished.value,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("To results")
+                    Text(text = if (!gameViewModel.isTourFinished.value) "Set down all the games to go to results" else "To results")
                 }
             }
         }
@@ -276,20 +287,52 @@ fun ResultsScreen(results: List<Tournament.PlayerResult>) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Player")
-                    Text(text = "Wins")
-                    Text(text = "Scores")
+                    Box(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Player",
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    }
+                    Box(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Wins",
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    }
+                    Box(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Scores",
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    }
                 }
-                results.forEach {playerResult ->
+                results.forEach { playerResult ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(playerResult.name)
-                        Text(text = playerResult.wins.toString())
-                        Text(text = playerResult.score.toString())
+                        Box(
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                playerResult.name,
+                                modifier = Modifier.align(Alignment.Center)
+                            )
+                        }
+                        Box(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = playerResult.wins.toString(),
+                                modifier = Modifier.align(Alignment.Center)
+                            )
+                        }
+                        Box(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = playerResult.score.toString(),
+                                modifier = Modifier.align(Alignment.Center)
+                            )
+                        }
                     }
                 }
             }
@@ -298,23 +341,9 @@ fun ResultsScreen(results: List<Tournament.PlayerResult>) {
 }
 
 class GameViewModel : ViewModel() {
+    val tournament = mutableStateOf<Tournament?>(null)
     val players = mutableStateListOf("1", "2", "3", "4", "5")
-//    val gameTeams = listOf(
-//        Pair(0, 1) to Pair(2, 3),
-//        Pair(0, 2) to Pair(3, 4),
-//        Pair(0, 3) to Pair(2, 4),
-//        Pair(0, 4) to Pair(1, 4),
-//    )
-
     val gameTeams = mutableListOf<Pair<Pair<Int, Int>, Pair<Int, Int>>>()
-
-    //
-//    val gameResults = mutableStateListOf(
-//        GameResult(null, null),
-//        GameResult(null, null),
-//        GameResult(null, null),
-//        GameResult(null, null)
-//    )
     val gameResults = mutableStateListOf<GameResult>()
 
 
