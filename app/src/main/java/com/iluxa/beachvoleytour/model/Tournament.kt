@@ -10,15 +10,15 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
 
-class Tournament(val players: List<String>, schema: String) {
+class Tournament(val numberOfPlayers: Int, schema: String) {
 
     private val gamesToPlay: MutableList<Game> = emptyList<Game>().toMutableList()
 
     init {
-        if (players.size < 4 || players.size > 7) error("The number of players must be between 4 and 7")
+        if (numberOfPlayers < 4 || numberOfPlayers > 7) error("The number of players must be between 4 and 7")
 
         Json.decodeFromString<List<TournamentData>>(schema)
-            .firstOrNull { it.playersNumber == players.size }
+            .firstOrNull { it.playersNumber == numberOfPlayers }
             ?.let {
                 val repeat = it.repeatRoundNumber ?: 1
                 repeat(repeat) { _ ->
@@ -36,13 +36,13 @@ class Tournament(val players: List<String>, schema: String) {
                         )
                     }
                 }
-            } ?: error("can't find a tournament for ${players.size} players")
+            } ?: error("can't find a tournament for $numberOfPlayers players")
 
     }
 
     fun getResults(): List<PlayerResult> {
         val results = mutableListOf<PlayerResult>()
-        players.forEachIndexed { index, _ ->
+        repeat(numberOfPlayers) { index ->
             val playerIndex = index + 1
             var wins = 0
             var fullScore = 0
@@ -53,7 +53,7 @@ class Tournament(val players: List<String>, schema: String) {
                    if (score > 0) wins++
                 }
             }
-            results.add(PlayerResult(players[playerIndex - 1], wins, fullScore))
+            results.add(PlayerResult(playerIndex, wins, fullScore))
         }
         return results.sortedDescending()
     }
@@ -67,7 +67,7 @@ class Tournament(val players: List<String>, schema: String) {
         }
     }
 
-    data class PlayerResult(val name: String, val wins: Int, val score: Int): Comparable<PlayerResult> {
+    data class PlayerResult(val name: Int, val wins: Int, val score: Int): Comparable<PlayerResult> {
         override fun toString(): String {
             return "$name $wins $score"
         }
