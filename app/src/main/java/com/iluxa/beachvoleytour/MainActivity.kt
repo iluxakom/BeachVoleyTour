@@ -76,11 +76,11 @@ fun MyApp() {
         composable("players") {
             PlayerScreen(gameViewModel, onNext = {
                 val tour =
-                    if (gameViewModel.tournament.value == null || gameViewModel.tournament.value!!.numberOfPlayers != gameViewModel.players.size) {
+                    if (gameViewModel.tournament == null || gameViewModel.tournament!!.numberOfPlayers != gameViewModel.players.size) {
                         val t = Tournament(gameViewModel.players.toList().size, schema)
-                        gameViewModel.tournament.value = t
+                        gameViewModel.tournament = t
                         t
-                    } else gameViewModel.tournament.value!!
+                    } else gameViewModel.tournament!!
                 if (tour.getGames().size != gameViewModel.gameResults.size) {
                     gameViewModel.resetResults()
                     repeat(tour.getGames().size) {
@@ -92,20 +92,13 @@ fun MyApp() {
         }
         composable("games") {
             GameScreen(gameViewModel, onNext = {
-                gameViewModel.gameResults.forEachIndexed { index, gameResult ->
-                    gameViewModel.tournament.value?.setGameResult(
-                        index + 1,
-                        gameResult.team1Score ?: 0,
-                        gameResult.team2Score ?: 0
-                    ) ?: error("no tournament data")
-                }
+                gameViewModel.saveResults()
                 navController.navigate("results")
             })
         }
         composable("results") {
             ResultsScreen(
-                gameViewModel,
-                gameViewModel.tournament.value?.getResults() ?: error("no tournament data")
+                gameViewModel
             )
         }
     }
@@ -230,8 +223,7 @@ fun GameScreen(gameViewModel: GameViewModel, onNext: () -> Unit) {
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 val (team1Players, team2Players) =
-                                    gameViewModel.tournament.value?.let { it.getGames()[index].run { first to second } }
-                                        ?: error("no tournament data")
+                                    gameViewModel.getGames()[index].run { first to second }
                                 Box(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = "${index + 1}.",
@@ -313,7 +305,7 @@ fun GameScreen(gameViewModel: GameViewModel, onNext: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ResultsScreen(vm: GameViewModel, results: List<Tournament.PlayerResult>) {
+fun ResultsScreen(vm: GameViewModel) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -355,7 +347,7 @@ fun ResultsScreen(vm: GameViewModel, results: List<Tournament.PlayerResult>) {
                         )
                     }
                 }
-                results.forEachIndexed { index, playerResult ->
+                vm.getResults().forEachIndexed { index, playerResult ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth(),
@@ -390,7 +382,7 @@ fun ResultsScreen(vm: GameViewModel, results: List<Tournament.PlayerResult>) {
 }
 
 class GameViewModel : ViewModel() {
-    val tournament = mutableStateOf<Tournament?>(null)
+    var tournament: Tournament? = null
     val players = mutableStateListOf("", "", "", "")
     val gameResults = mutableStateListOf<GameResult>()
 
@@ -402,8 +394,21 @@ class GameViewModel : ViewModel() {
         isTourFinished.value = false
     }
 
+    fun saveResults() = gameResults.forEachIndexed() { index, gameResult ->
+        tournament?.setGameResult(
+            index + 1,
+            gameResult.team1Score ?: 0,
+            gameResult.team2Score ?: 0
+        ) ?: error("no tournament data")
+    }
+
+    fun getResults() = tournament?.getResults() ?:error("no tournament data")
+
+    fun getGames() = tournament?.getGames() ?:error("no tournament data")
+
     private fun observeGameResults() {
-        isTourFinished.value = gameResults.all { it.team1Score != null && it.team2Score != null }
+        isTourFinished.value =
+            gameResults.all { it.team1Score != null && it.team2Score != null }
     }
 
     fun isTourStarted() = gameResults.any { it.team1Score != null || it.team2Score != null }
