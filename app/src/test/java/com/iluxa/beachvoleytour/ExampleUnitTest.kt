@@ -1,4 +1,4 @@
-package com.example.myapplication
+package com.iluxa.beachvoleytour
 
 import org.junit.Test
 

@@ -1,4 +1,4 @@
-package com.example.myapplication
+package com.iluxa.beachvoleytour
 
 import android.os.Build
 import android.os.Bundle
@@ -39,8 +39,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.myapplication.model.Tournament
-import com.example.myapplication.ui.theme.MyApplicationTheme
+import com.iluxa.beachvoleytour.model.Tournament
+import com.iluxa.beachvoleytour.ui.theme.MyApplicationTheme
 
 class MainActivity : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.R)
@@ -269,7 +269,7 @@ fun GameScreen(gameViewModel: GameViewModel, onNext: () -> Unit) {
                                             val newValue = it.toIntOrNull() ?: 0
                                             val anotherTeamRes = gameResults[index].team1Score
                                             setGameResult(
-                                                index,
+                                                 index,
                                                 GameResult(anotherTeamRes, newValue)
                                             )
                                         },

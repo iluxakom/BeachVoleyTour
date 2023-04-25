@@ -1,4 +1,4 @@
-package com.example.myapplication.model
+package com.iluxa.beachvoleytour.model
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
