@@ -28,9 +28,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -95,8 +95,8 @@ fun MyApp() {
                 gameViewModel.gameResults.forEachIndexed { index, gameResult ->
                     gameViewModel.tournament.value?.setGameResult(
                         index + 1,
-                        gameResult.team1Score!!,
-                        gameResult.team2Score!!
+                        gameResult.team1Score ?: 0,
+                        gameResult.team2Score ?: 0
                     ) ?: error("no tournament data")
                 }
                 navController.navigate("results")
@@ -104,7 +104,7 @@ fun MyApp() {
         }
         composable("results") {
             ResultsScreen(
-                gameViewModel.players,
+                gameViewModel,
                 gameViewModel.tournament.value?.getResults() ?: error("no tournament data")
             )
         }
@@ -229,10 +229,9 @@ fun GameScreen(gameViewModel: GameViewModel, onNext: () -> Unit) {
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                val team1Players =
-                                    gameViewModel.tournament.value!!.getGames()[index].first
-                                val team2Players =
-                                    gameViewModel.tournament.value!!.getGames()[index].second
+                                val (team1Players, team2Players) =
+                                    gameViewModel.tournament.value?.let { it.getGames()[index].run { first to second } }
+                                        ?: error("no tournament data")
                                 Box(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = "${index + 1}.",
@@ -271,7 +270,7 @@ fun GameScreen(gameViewModel: GameViewModel, onNext: () -> Unit) {
                                             val newValue = it.toIntOrNull() ?: 0
                                             val anotherTeamRes = gameResults[index].team1Score
                                             setGameResult(
-                                                 index,
+                                                index,
                                                 GameResult(anotherTeamRes, newValue)
                                             )
                                         },
@@ -302,10 +301,9 @@ fun GameScreen(gameViewModel: GameViewModel, onNext: () -> Unit) {
                         gameViewModel.printGameResults()
                         onNext()
                     },
-                    enabled = gameViewModel.isTourFinished.value,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(text = if (!gameViewModel.isTourFinished.value) "Set down all the games to go to results" else "To results")
+                    Text(text = "To results")
                 }
             }
         }
@@ -315,11 +313,16 @@ fun GameScreen(gameViewModel: GameViewModel, onNext: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ResultsScreen(players: SnapshotStateList<String>, results: List<Tournament.PlayerResult>) {
+fun ResultsScreen(vm: GameViewModel, results: List<Tournament.PlayerResult>) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Results") }
+                title = {
+                    Text(
+                        "Results" + if (vm.isTourFinished.value) "" else " (not all games finished)",
+                        color = if (!vm.isTourFinished.value) Color.Red else Color.Green
+                    )
+                }
             )
         },
         content = { padding ->
@@ -363,7 +366,7 @@ fun ResultsScreen(players: SnapshotStateList<String>, results: List<Tournament.P
                             modifier = Modifier.weight(1f)
                         ) {
                             Text(
-                                players[index],
+                                vm.players[index],
                                 modifier = Modifier.align(Alignment.Center)
                             )
                         }
