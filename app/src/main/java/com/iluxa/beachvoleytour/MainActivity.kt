@@ -386,7 +386,7 @@ fun ResultsScreen(results: List<Tournament.PlayerResult>) {
 
 class GameViewModel : ViewModel() {
     val tournament = mutableStateOf<Tournament?>(null)
-    val players = mutableStateListOf("", "", "", "", "")
+    val players = mutableStateListOf("", "", "", "")
     val gameResults = mutableStateListOf<GameResult>()
 
 
