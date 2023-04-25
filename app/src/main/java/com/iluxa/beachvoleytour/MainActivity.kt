@@ -172,20 +172,20 @@ fun PlayerScreen(viewModel: GameViewModel, onNext: () -> Unit) {
                         else
                             players.add("")
                     },
-                    enabled = players.size < 6,
+                    enabled = players.size < 7,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 16.dp)
                 ) {
                     Text(
-                        if (players.size < 6) "Add Player"
-                        else "Max 6 players is here"
+                        if (players.size < 7) "Add Player"
+                        else "Max7 players is here"
                     )
                 }
 
                 Button(
                     onClick = onNext,
-                    enabled = players.size in 4..6,
+                    enabled = players.all { it.isNotBlank() },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 16.dp)
