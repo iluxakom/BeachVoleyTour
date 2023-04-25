@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -26,10 +27,12 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -72,15 +75,14 @@ fun MyApp() {
         composable("players") {
             PlayerScreen(gameViewModel, onNext = {
                 val tour =
-                    gameViewModel.tournament.value ?: Tournament(gameViewModel.players, schema)
-                gameViewModel.tournament.value = tour
+                    if (gameViewModel.tournament.value == null || gameViewModel.tournament.value!!.players.size != gameViewModel.players.size) {
+                        val t = Tournament(gameViewModel.players.toList(), schema)
+                        gameViewModel.tournament.value = t
+                        t
+                    } else gameViewModel.tournament.value!!
                 if (tour.getGames().size != gameViewModel.gameResults.size) {
-                    gameViewModel.gameResults.removeAll { true }
-                    gameViewModel.gameTeams.removeAll { true }
-                    tour.getGames().forEach {
-                        gameViewModel.gameTeams.add(
-                            (it.first.player1 to it.first.player2) to (it.second.player1 to it.second.player2)
-                        )
+                    gameViewModel.resetResults()
+                    repeat(tour.getGames().size) {
                         gameViewModel.gameResults.add(GameResult(null, null))
                     }
                 }
@@ -136,24 +138,54 @@ fun PlayerScreen(viewModel: GameViewModel, onNext: () -> Unit) {
                     )
                 }
 
+                val showDialog = remember { mutableStateOf(false) }
+
+                if (showDialog.value) {
+                    AlertDialog(
+                        onDismissRequest = { showDialog.value = false },
+                        title = { Text(text = "Game results will be lost") },
+                        text = { Text(text = "some games already played. Reset the results?") },
+                        confirmButton = {
+                            Button(
+                                onClick = {
+                                    players.add("")
+                                    showDialog.value = false
+                                },
+                            ) {
+                                Text(text = "Add player anyway")
+                            }
+                        },
+                        dismissButton = {
+                            Button(
+                                onClick = { showDialog.value = false },
+                            ) {
+                                Text(text = "Cancel")
+                            }
+                        }
+                    )
+                }
+
                 Button(
                     onClick = {
-                        players.add("")
+                        if (viewModel.isTourStarted())
+                            showDialog.value = true
+                        else
+                            players.add("")
                     },
-                    enabled = players.size < 7,
+                    enabled = players.size < 6,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 16.dp)
                 ) {
                     Text(
-                        if (players.size < 7) "Add Player"
-                        else "Max 7 players is here"
+                        if (players.size < 6) "Add Player"
+                        else "Max 6 players is here"
                     )
                 }
 
                 Button(
                     onClick = onNext,
-                    enabled = players.size in 4..7,
+                    enabled = players.size in 4..6,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 16.dp)
@@ -195,8 +227,10 @@ fun GameScreen(gameViewModel: GameViewModel, onNext: () -> Unit) {
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                val team1Players = gameTeams[index].first
-                                val team2Players = gameTeams[index].second
+                                val team1Players =
+                                    gameViewModel.tournament.value!!.getGames()[index].first
+                                val team2Players =
+                                    gameViewModel.tournament.value!!.getGames()[index].second
                                 Box(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = "${index + 1}.",
@@ -213,7 +247,12 @@ fun GameScreen(gameViewModel: GameViewModel, onNext: () -> Unit) {
                                                 GameResult(newValue, anotherTeamRes)
                                             )
                                         },
-                                        label = { Text(text = "${players[team1Players.first - 1]}/${players[team1Players.second - 1]}") },
+                                        label = {
+                                            Text(
+                                                text = "${players[team1Players.player1 - 1]}/${players[team1Players.player2 - 1]}",
+                                                maxLines = 1, overflow = TextOverflow.Ellipsis
+                                            )
+                                        },
                                         keyboardOptions = KeyboardOptions.Default.copy(
                                             keyboardType = KeyboardType.Number
                                         ),
@@ -234,7 +273,12 @@ fun GameScreen(gameViewModel: GameViewModel, onNext: () -> Unit) {
                                                 GameResult(anotherTeamRes, newValue)
                                             )
                                         },
-                                        label = { Text(text = "${players[team2Players.first - 1]}/${players[team2Players.second - 1]}") },
+                                        label = {
+                                            Text(
+                                                text = "${players[team2Players.player1 - 1]}/${players[team2Players.player2 - 1]}",
+                                                maxLines = 1, overflow = TextOverflow.Ellipsis
+                                            )
+                                        },
                                         keyboardOptions = KeyboardOptions.Default.copy(
                                             keyboardType = KeyboardType.Number
                                         )
@@ -342,16 +386,22 @@ fun ResultsScreen(results: List<Tournament.PlayerResult>) {
 
 class GameViewModel : ViewModel() {
     val tournament = mutableStateOf<Tournament?>(null)
-    val players = mutableStateListOf("1", "2", "3", "4", "5")
-    val gameTeams = mutableListOf<Pair<Pair<Int, Int>, Pair<Int, Int>>>()
+    val players = mutableStateListOf("", "", "", "", "")
     val gameResults = mutableStateListOf<GameResult>()
 
 
     val isTourFinished = mutableStateOf(false)
 
+    fun resetResults() {
+        gameResults.removeAll { true }
+        isTourFinished.value = false
+    }
+
     private fun observeGameResults() {
         isTourFinished.value = gameResults.all { it.team1Score != null && it.team2Score != null }
     }
+
+    fun isTourStarted() = gameResults.any { it.team1Score != null || it.team2Score != null }
 
     fun setGameResult(gameIndex: Int, result: GameResult) {
         gameResults[gameIndex] = result
