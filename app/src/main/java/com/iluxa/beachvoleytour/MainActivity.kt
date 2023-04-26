@@ -1,11 +1,14 @@
 package com.iluxa.beachvoleytour
 
 import android.content.Context
+import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,6 +38,7 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -435,6 +439,35 @@ fun ResultsScreen(vm: GameViewModel, result: List<Triple<String, Int, Int>>) {
                         }
                     }
                 }
+            }
+        },
+        bottomBar = {
+            @Composable
+            fun ShareButton() {
+                val shareIntent =
+                    Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT,
+                            result.joinToString(separator = "\n") { "${it.first}:  wins: ${it.second} score: ${it.third}" })
+                    }
+                val launcher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.StartActivityForResult()
+                ) { }
+
+                Button(onClick = {
+                    val chooser = Intent.createChooser(shareIntent, "Share with...")
+                    launcher.launch(chooser)
+                }) {
+                    Column {
+                        Text("Share")
+                    }
+                }
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth(),
+            ) {
+                ShareButton()
             }
         }
     )
