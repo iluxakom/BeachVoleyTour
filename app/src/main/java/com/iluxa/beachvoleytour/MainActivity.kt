@@ -189,8 +189,10 @@ fun PlayerScreen(viewModel: GameViewModel, onNext: () -> Unit) {
                     onClick = {
                         if (viewModel.isTourStarted())
                             showAddDialog.value = true
-                        else
+                        else {
                             players.add("")
+                            viewModel.resetResults()
+                        }
                     },
                     enabled = players.size < 7,
                     modifier = Modifier
