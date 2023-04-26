@@ -91,7 +91,10 @@ class MainActivity : ComponentActivity() {
 fun MyApp(gameViewModel: GameViewModel) {
     val navController = rememberNavController()
 
-    NavHost(navController = navController, startDestination = if (gameViewModel.isTourStarted()) "games" else "players") {
+    NavHost(
+        navController = navController,
+        startDestination = if (gameViewModel.isTourStarted()) "games" else "players"
+    ) {
         composable("players") {
             PlayerScreen(gameViewModel, onNext = {
                 navController.navigate("games")
@@ -107,8 +110,16 @@ fun MyApp(gameViewModel: GameViewModel) {
             })
         }
         composable("results") {
+            val result = gameViewModel.getResults().map {
+                Triple(
+                    gameViewModel.players[it.playerIndex - 1],
+                    it.wins,
+                    it.score
+                )
+            }
             ResultsScreen(
-                gameViewModel
+                gameViewModel,
+                result
             )
         }
     }
@@ -170,14 +181,14 @@ fun PlayerScreen(viewModel: GameViewModel, onNext: () -> Unit) {
                 }
 
                 if (showAddDialog.value) {
-                    ResetDialog(showAddDialog ,confirmAction = {
+                    ResetDialog(showAddDialog, confirmAction = {
                         players.add("")
                         viewModel.resetResults()
                         showAddDialog.value = false
                     })
                 }
                 if (showRestDialog.value) {
-                    ResetDialog(showRestDialog ,confirmAction = {
+                    ResetDialog(showRestDialog, confirmAction = {
                         players.clear()
                         players.addAll(listOf("", "", "", ""))
                         viewModel.resetResults()
@@ -353,7 +364,7 @@ fun GameScreen(gameViewModel: GameViewModel, onNext: () -> Unit, onBack: () -> U
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ResultsScreen(vm: GameViewModel) {
+fun ResultsScreen(vm: GameViewModel, result: List<Triple<String, Int, Int>>) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -395,7 +406,7 @@ fun ResultsScreen(vm: GameViewModel) {
                         )
                     }
                 }
-                vm.getResults().forEachIndexed { index, playerResult ->
+                result.forEach { playerResult ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth(),
@@ -406,19 +417,19 @@ fun ResultsScreen(vm: GameViewModel) {
                             modifier = Modifier.weight(1f)
                         ) {
                             Text(
-                                vm.players[index],
+                                playerResult.first,
                                 modifier = Modifier.align(Alignment.Center)
                             )
                         }
                         Box(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = playerResult.wins.toString(),
+                                text = playerResult.second.toString(),
                                 modifier = Modifier.align(Alignment.Center)
                             )
                         }
                         Box(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = playerResult.score.toString(),
+                                text = playerResult.third.toString(),
                                 modifier = Modifier.align(Alignment.Center)
                             )
                         }
@@ -451,6 +462,7 @@ class GameViewModel(private val sharedPreferences: SharedPreferences, private va
             gameResult.team1Score ?: 0,
             gameResult.team2Score ?: 0
         ) ?: error("no tournament data")
+        observeGameResults()
     }
 
     fun getResults() = tournament?.getResults() ?: error("no tournament data")
