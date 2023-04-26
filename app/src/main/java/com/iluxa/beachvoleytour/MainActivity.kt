@@ -27,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -139,27 +140,25 @@ fun PlayerScreen(viewModel: GameViewModel, onNext: () -> Unit) {
                     )
                 }
 
-                val showDialog = remember { mutableStateOf(false) }
+                val showAddDialog = remember { mutableStateOf(false) }
+                val showRestDialog = remember { mutableStateOf(false) }
 
-                if (showDialog.value) {
+                @Composable
+                fun ResetDialog(state: MutableState<Boolean>, confirmAction: () -> Unit) {
                     AlertDialog(
-                        onDismissRequest = { showDialog.value = false },
+                        onDismissRequest = { state.value = false },
                         title = { Text(text = "Game results will be lost") },
                         text = { Text(text = "some games already played. Reset the results?") },
                         confirmButton = {
                             Button(
-                                onClick = {
-                                    players.add("")
-                                    viewModel.resetResults()
-                                    showDialog.value = false
-                                },
+                                onClick = confirmAction,
                             ) {
-                                Text(text = "Add player anyway")
+                                Text(text = "Proceed")
                             }
                         },
                         dismissButton = {
                             Button(
-                                onClick = { showDialog.value = false },
+                                onClick = { state.value = false },
                             ) {
                                 Text(text = "Cancel")
                             }
@@ -167,10 +166,26 @@ fun PlayerScreen(viewModel: GameViewModel, onNext: () -> Unit) {
                     )
                 }
 
+                if (showAddDialog.value) {
+                    ResetDialog(showAddDialog ,confirmAction = {
+                        players.add("")
+                        viewModel.resetResults()
+                        showAddDialog.value = false
+                    })
+                }
+                if (showRestDialog.value) {
+                    ResetDialog(showRestDialog ,confirmAction = {
+                        players.clear()
+                        players.addAll(listOf("", "", "", ""))
+                        viewModel.resetResults()
+                        showRestDialog.value = false
+                    })
+                }
+
                 Button(
                     onClick = {
                         if (viewModel.isTourStarted())
-                            showDialog.value = true
+                            showAddDialog.value = true
                         else
                             players.add("")
                     },
@@ -193,6 +208,17 @@ fun PlayerScreen(viewModel: GameViewModel, onNext: () -> Unit) {
                         .padding(vertical = 16.dp)
                 ) {
                     Text("Next")
+                }
+
+                Button(
+                    onClick = {
+                        showRestDialog.value = true
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp)
+                ) {
+                    Text("Reset")
                 }
             }
         }
