@@ -10,7 +10,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
 
-class Tournament(val numberOfPlayers: Int, schema: String) {
+class Tournament(private val numberOfPlayers: Int, schema: String) {
 
     private val gamesToPlay: MutableList<Game> = emptyList<Game>().toMutableList()
 

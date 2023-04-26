@@ -1,5 +1,7 @@
 package com.iluxa.beachvoleytour
 
+import android.content.Context
+import android.content.SharedPreferences
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -28,25 +30,42 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.iluxa.beachvoleytour.model.Tournament
 import com.iluxa.beachvoleytour.ui.theme.MyApplicationTheme
 
 class MainActivity : ComponentActivity() {
+
+    private val sharedPreferences: SharedPreferences by lazy {
+        getSharedPreferences("MyApp", Context.MODE_PRIVATE)
+    }
+
+    lateinit var gameViewModel: GameViewModel
+
+
     @RequiresApi(Build.VERSION_CODES.R)
     override fun onCreate(savedInstanceState: Bundle?) {
+
         super.onCreate(savedInstanceState)
+
+        val schema =
+            applicationContext.assets.open("tournament.schemes.json").readBytes().decodeToString()
+
+        gameViewModel = GameViewModel(sharedPreferences, schema)
+        gameViewModel.loadData()
+
         setContent {
             MyApplicationTheme {
                 // A surface container using the 'background' color from the theme
@@ -54,35 +73,26 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    MyApp()
+                    MyApp(gameViewModel)
                 }
             }
         }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        gameViewModel.saveData()
     }
 }
 
 @RequiresApi(Build.VERSION_CODES.R)
 @Composable
-fun MyApp() {
+fun MyApp(gameViewModel: GameViewModel) {
     val navController = rememberNavController()
-
-    val gameViewModel: GameViewModel = viewModel()
-
-
-    val schema =
-        LocalContext.current.assets.open("tournament.schemes.json").readBytes().decodeToString()
 
     NavHost(navController = navController, startDestination = "players") {
         composable("players") {
             PlayerScreen(gameViewModel, onNext = {
-                if (gameViewModel.tournament == null || gameViewModel.tournament!!.numberOfPlayers != gameViewModel.players.size) {
-                    val t = Tournament(gameViewModel.players.toList().size, schema)
-                    gameViewModel.tournament = t
-                    gameViewModel.resetResults()
-                    repeat(t.getGames().size) {
-                        gameViewModel.gameResults.add(GameResult(null, null))
-                    }
-                }
                 navController.navigate("games")
             })
         }
@@ -140,6 +150,7 @@ fun PlayerScreen(viewModel: GameViewModel, onNext: () -> Unit) {
                             Button(
                                 onClick = {
                                     players.add("")
+                                    viewModel.resetResults()
                                     showDialog.value = false
                                 },
                             ) {
@@ -377,7 +388,8 @@ fun ResultsScreen(vm: GameViewModel) {
     )
 }
 
-class GameViewModel : ViewModel() {
+class GameViewModel(private val sharedPreferences: SharedPreferences, private val schema: String) :
+    ViewModel() {
     var tournament: Tournament? = null
     val players = mutableStateListOf("", "", "", "")
     val gameResults = mutableStateListOf<GameResult>()
@@ -386,11 +398,13 @@ class GameViewModel : ViewModel() {
     val isTourFinished = mutableStateOf(false)
 
     fun resetResults() {
-        gameResults.removeAll { true }
+        gameResults.clear()
         isTourFinished.value = false
+        tournament = Tournament(players.size, schema)
+        gameResults.addAll(getEmptyGameList(tournament!!.getGames().size))
     }
 
-    fun saveResults() = gameResults.forEachIndexed() { index, gameResult ->
+    fun saveResults() = gameResults.forEachIndexed { index, gameResult ->
         tournament?.setGameResult(
             index + 1,
             gameResult.team1Score ?: 0,
@@ -415,6 +429,46 @@ class GameViewModel : ViewModel() {
     }
 
     fun printGameResults() = println(gameResults.map { it.toString() })
+
+    companion object {
+        private const val PLAYERS_KEY = "PLAYERS_KEY"
+        private const val GAME_RESULTS_KEY = "GAME_RESULTS_KEY"
+    }
+
+    fun loadData() {
+        players.clear()
+        players.addAll(
+            Gson().fromJson(
+                sharedPreferences.getString(PLAYERS_KEY, null),
+                object : TypeToken<List<String>>() {}.type
+            ) ?: listOf("", "", "", "")
+        )
+        tournament = Tournament(players.size, schema)
+
+        gameResults.clear()
+        gameResults.addAll(
+            Gson().fromJson(
+                sharedPreferences.getString(GAME_RESULTS_KEY, null),
+                object : TypeToken<List<GameResult>>() {}.type
+            ) ?: getEmptyGameList(tournament!!.getGames().size)
+        )
+    }
+
+    private fun getEmptyGameList(size: Int): SnapshotStateList<GameResult> {
+        val emptyGameList = mutableStateListOf<GameResult>()
+        repeat(size) {
+            emptyGameList.add(GameResult(null, null))
+        }
+        return emptyGameList
+    }
+
+    fun saveData() {
+        sharedPreferences.edit().apply {
+            putString(PLAYERS_KEY, Gson().toJson(players))
+            putString(GAME_RESULTS_KEY, Gson().toJson(gameResults))
+            apply()
+        }
+    }
 
 }
 
