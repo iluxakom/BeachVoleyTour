@@ -67,9 +67,9 @@ class Tournament(val numberOfPlayers: Int, schema: String) {
         }
     }
 
-    data class PlayerResult(val name: Int, val wins: Int, val score: Int): Comparable<PlayerResult> {
+    data class PlayerResult(val playerIndex: Int, val wins: Int, val score: Int): Comparable<PlayerResult> {
         override fun toString(): String {
-            return "$name $wins $score"
+            return "$playerIndex $wins $score"
         }
         override fun compareTo(other: PlayerResult): Int {
             return compareValuesBy(this, other, { it.wins }, { it.score })
