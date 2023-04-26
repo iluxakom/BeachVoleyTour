@@ -75,15 +75,11 @@ fun MyApp() {
     NavHost(navController = navController, startDestination = "players") {
         composable("players") {
             PlayerScreen(gameViewModel, onNext = {
-                val tour =
-                    if (gameViewModel.tournament == null || gameViewModel.tournament!!.numberOfPlayers != gameViewModel.players.size) {
-                        val t = Tournament(gameViewModel.players.toList().size, schema)
-                        gameViewModel.tournament = t
-                        t
-                    } else gameViewModel.tournament!!
-                if (tour.getGames().size != gameViewModel.gameResults.size) {
+                if (gameViewModel.tournament == null || gameViewModel.tournament!!.numberOfPlayers != gameViewModel.players.size) {
+                    val t = Tournament(gameViewModel.players.toList().size, schema)
+                    gameViewModel.tournament = t
                     gameViewModel.resetResults()
-                    repeat(tour.getGames().size) {
+                    repeat(t.getGames().size) {
                         gameViewModel.gameResults.add(GameResult(null, null))
                     }
                 }
@@ -402,9 +398,9 @@ class GameViewModel : ViewModel() {
         ) ?: error("no tournament data")
     }
 
-    fun getResults() = tournament?.getResults() ?:error("no tournament data")
+    fun getResults() = tournament?.getResults() ?: error("no tournament data")
 
-    fun getGames() = tournament?.getGames() ?:error("no tournament data")
+    fun getGames() = tournament?.getGames() ?: error("no tournament data")
 
     private fun observeGameResults() {
         isTourFinished.value =
