@@ -91,7 +91,7 @@ class MainActivity : ComponentActivity() {
 fun MyApp(gameViewModel: GameViewModel) {
     val navController = rememberNavController()
 
-    NavHost(navController = navController, startDestination = "players") {
+    NavHost(navController = navController, startDestination = if (gameViewModel.isTourStarted()) "games" else "players") {
         composable("players") {
             PlayerScreen(gameViewModel, onNext = {
                 navController.navigate("games")
@@ -101,6 +101,9 @@ fun MyApp(gameViewModel: GameViewModel) {
             GameScreen(gameViewModel, onNext = {
                 gameViewModel.saveResults()
                 navController.navigate("results")
+            }, onBack = {
+                gameViewModel.saveResults()
+                navController.navigate("players")
             })
         }
         composable("results") {
@@ -207,7 +210,7 @@ fun PlayerScreen(viewModel: GameViewModel, onNext: () -> Unit) {
                         .fillMaxWidth()
                         .padding(vertical = 16.dp)
                 ) {
-                    Text("Next")
+                    Text("Go games")
                 }
 
                 Button(
@@ -229,7 +232,7 @@ fun PlayerScreen(viewModel: GameViewModel, onNext: () -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @RequiresApi(Build.VERSION_CODES.R)
 @Composable
-fun GameScreen(gameViewModel: GameViewModel, onNext: () -> Unit) {
+fun GameScreen(gameViewModel: GameViewModel, onNext: () -> Unit, onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -317,18 +320,28 @@ fun GameScreen(gameViewModel: GameViewModel, onNext: () -> Unit) {
             }
         },
         bottomBar = {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
+
+                Button(
+                    onClick = onBack,
+                    modifier = Modifier.padding(horizontal = 15.dp)
+                ) {
+                    Text(text = "< To players")
+                }
 
                 Button(
                     onClick = {
                         gameViewModel.printGameResults()
                         onNext()
                     },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.padding(horizontal = 15.dp)
                 ) {
-                    Text(text = "To results")
+                    Text(text = "To results >")
                 }
             }
         }
