@@ -448,7 +448,8 @@ fun ResultsScreen(vm: GameViewModel, result: List<Triple<String, Int, Int>>) {
                     Intent(Intent.ACTION_SEND).apply {
                         type = "text/plain"
                         putExtra(Intent.EXTRA_TEXT,
-                            result.joinToString(separator = "\n") { "${it.first}:  wins: ${it.second} score: ${it.third}" })
+                            result.joinToString(separator = "\n") { "${it.first}:\twins: ${it.second} " +
+                                    "\tscore: ${it.third}" })
                     }
                 val launcher = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.StartActivityForResult()
@@ -458,14 +459,12 @@ fun ResultsScreen(vm: GameViewModel, result: List<Triple<String, Int, Int>>) {
                     val chooser = Intent.createChooser(shareIntent, "Share with...")
                     launcher.launch(chooser)
                 }) {
-                    Column {
                         Text("Share")
-                    }
                 }
             }
             Row(
-                modifier = Modifier
-                    .fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center
             ) {
                 ShareButton()
             }
